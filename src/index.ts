@@ -1,40 +1,21 @@
 import express, { Request, Response } from "express";
+import { conn } from './dbconn';
 
 const app = express();
 const port = 3000;
 
 app.use(express.json());
 
+// Your existing route
 app.get('/', (req: Request, res: Response) => {
     res.send('Hello, this is your simple Express TypeScript API!');
 });
 
-// Add a route for basketball teams
-interface BasketballTeam {
-    id: number;
-    name: string;
-    city: string;
-}
-
-const basketballTeams: BasketballTeam[] = [
-    { id: 1, name: 'Lakers', city: 'Los Angeles' },
-    { id: 2, name: 'Celtics', city: 'Boston' },
-    // Add more teams as needed
-];
-
-app.get('/teams', (req: Request, res: Response) => {
-    res.json(basketballTeams);
-});
-
-app.get('/teams/:id', (req: Request, res: Response) => {
-    const teamId = parseInt(req.params.id);
-    const team = basketballTeams.find(team => team.id === teamId);
-
-    if (team) {
-        res.json(team);
-    } else {
-        res.status(404).json({ error: 'Team not found' });
-    }
+app.get("/users", (req, res) => {
+    conn.query("select * from User", (err, result) => {
+        if (err) throw err;
+        res.json(result);
+    });
 });
 
 app.listen(port, () => {
