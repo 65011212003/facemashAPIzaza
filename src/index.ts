@@ -210,14 +210,55 @@ app.post('/login', (req: Request, res: Response) => {
 // });
 
 
+// app.get('/randomImages', (req: Request, res: Response) => {
+//     const eloRange = 300;
+
+//     // Query to select random images from two different users within the EloScore range
+//     const query = `
+//         SELECT *
+//         FROM Images
+//         WHERE EloScore BETWEEN (1500 - ${eloRange}) AND (1500 + ${eloRange})
+//         ORDER BY RAND()
+//         LIMIT 4
+//     `;
+
+//     // Execute the query
+//     db.query(query, (err, results) => {
+//         if (err) {
+//             console.error(err);
+//             return res.status(500).json({ error: 'Internal Server Error' });
+//         }
+
+//         // Ensure that we have at least two different users' images
+//         const uniqueUsers = new Set<number>();
+//         const selectedImages: any[] = [];
+
+//         for (const image of results) {
+//             if (!uniqueUsers.has(image.UserID)) {
+//                 uniqueUsers.add(image.UserID);
+//                 selectedImages.push(image);
+//             }
+
+//             if (selectedImages.length >= 2) {
+//                 break;  // Stop once we have images from two different users
+//             }
+//         }
+
+//         // Send the JSON response with the selected images
+//         res.json(selectedImages);
+//     });
+// });
+
+
 app.get('/randomImages', (req: Request, res: Response) => {
     const eloRange = 300;
 
     // Query to select random images from two different users within the EloScore range
     const query = `
-        SELECT *
-        FROM Images
-        WHERE EloScore BETWEEN (1500 - ${eloRange}) AND (1500 + ${eloRange})
+        SELECT i.*, u.display_name
+        FROM Images i
+        JOIN Users u ON i.UserID = u.UserID
+        WHERE i.EloScore BETWEEN (1500 - ${eloRange}) AND (1500 + ${eloRange})
         ORDER BY RAND()
         LIMIT 4
     `;
