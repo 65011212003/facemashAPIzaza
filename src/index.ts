@@ -67,6 +67,34 @@ app.get('/users/:id', (req: Request, res: Response) => {
     });
 });
 
+// Endpoint to get a user's image list with rankings compared to the previous day
+app.get('/users/:id/images', (req: Request, res: Response) => {
+    const userId = req.params.id;
+    const query = `
+        SELECT i.ImageID, i.ImageURL, i.EloScore, ds.Date,
+            CASE
+                WHEN ds.\`rank\` < prev_ds.\`rank\` THEN prev_ds.\`rank\` - ds.\`rank\`
+                WHEN ds.\`rank\` > prev_ds.\`rank\` THEN ds.\`rank\` - prev_ds.\`rank\`
+                ELSE 0
+            END AS rank_change
+        FROM Images i
+        JOIN DailyStatistics ds ON i.ImageID = ds.image_id
+        LEFT JOIN DailyStatistics prev_ds ON i.ImageID = prev_ds.image_id AND prev_ds.Date = DATE_SUB(ds.Date, INTERVAL 1 DAY)
+        WHERE i.UserID = ?
+        ORDER BY ds.Date DESC, i.EloScore DESC;
+    `;
+
+    db.query(query, [userId], (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        res.json(results);
+    });
+});
+
+
 app.post('/register', async (req: Request, res: Response) => {
     const { display_name, username, password } = req.body;
 
