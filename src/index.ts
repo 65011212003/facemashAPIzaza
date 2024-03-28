@@ -889,12 +889,54 @@ app.post("/upload", fileUpload.diskLoader.single("123"), async (req, res) => {
 
 
 
+// app.delete('/deleteImage/:imageId', async (req: Request, res: Response) => {
+//     const imageId = req.params.imageId;
+
+//     // Check if the image exists in the database
+//     const checkImageQuery = 'SELECT * FROM Images WHERE ImageID = ?';
+
+//     db.query(checkImageQuery, [imageId], async (checkErr, checkResults) => {
+//         if (checkErr) {
+//             console.error(checkErr);
+//             return res.status(500).json({ error: 'Internal Server Error' });
+//         }
+
+//         // If the image doesn't exist, return an error
+//         if (checkResults.length === 0) {
+//             return res.status(404).json({ error: 'Image not found' });
+//         }
+
+//         // Get the image URL from the database
+//         const imageUrl = checkResults[0].ImageURL;
+
+//         try {
+//             // Delete the image from Firebase Storage
+//             const storageRef = ref(storage, imageUrl);
+//             await deleteObject(storageRef);
+
+//             // Delete the image from the database
+//             const deleteQuery = 'DELETE FROM Images WHERE ImageID = ?';
+//             db.query(deleteQuery, [imageId], (deleteErr, result) => {
+//                 if (deleteErr) {
+//                     console.error(deleteErr);
+//                     return res.status(500).json({ error: 'Internal Server Error' });
+//                 }
+
+//                 res.json({ message: 'Image deleted successfully' });
+//             });
+//         } catch (error) {
+//             console.error('Error deleting image:', error);
+//             res.status(500).json({ error: 'Internal Server Error' });
+//         }
+//     });
+// });
+
+
 app.delete('/deleteImage/:imageId', async (req: Request, res: Response) => {
     const imageId = req.params.imageId;
 
     // Check if the image exists in the database
     const checkImageQuery = 'SELECT * FROM Images WHERE ImageID = ?';
-
     db.query(checkImageQuery, [imageId], async (checkErr, checkResults) => {
         if (checkErr) {
             console.error(checkErr);
@@ -910,6 +952,10 @@ app.delete('/deleteImage/:imageId', async (req: Request, res: Response) => {
         const imageUrl = checkResults[0].ImageURL;
 
         try {
+            // Delete the related records from the DailyStatistics table
+            const deleteDailyStatisticsQuery = 'DELETE FROM DailyStatistics WHERE image_id = ?';
+            await db.query(deleteDailyStatisticsQuery, [imageId]);
+
             // Delete the image from Firebase Storage
             const storageRef = ref(storage, imageUrl);
             await deleteObject(storageRef);
@@ -930,6 +976,7 @@ app.delete('/deleteImage/:imageId', async (req: Request, res: Response) => {
         }
     });
 });
+
 
 
 app.post('/updateImage', fileUpload.diskLoader.single('123'), async (req, res) => {
