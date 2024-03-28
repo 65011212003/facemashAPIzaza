@@ -1018,6 +1018,66 @@ app.get('/image-stats/:imageId', (req, res) => {
     });
 });
 
+//get cooldown
+app.get('/cooldown', (req: Request, res: Response) => {
+    // Construct the SQL query to retrieve all data from the cooldown table
+    const query = 'SELECT * FROM cooldown';
+
+    // Execute the query
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        res.json(results);
+    });
+});
+
+
+
+//update cooldown
+app.put('/cooldown', (req: Request, res: Response) => {
+    const { cooldownTime } = req.body;
+
+    // Check if the required fields are present
+    if (!cooldownTime) {
+        return res.status(400).json({ error: 'Cooldown time is required' });
+    }
+
+    // Construct the SQL query to update the cooldown data
+    const query = 'UPDATE cooldown SET cooldown = ?';
+
+    // Execute the query
+    db.query(query, [cooldownTime], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        if (result.affectedRows === 0) {
+            // If no rows were affected, it means the cooldown table is empty
+            // In this case, you can insert a new row with the provided cooldown time
+            const insertQuery = 'INSERT INTO cooldown (cooldownTime) VALUES (?)';
+            db.query(insertQuery, [cooldownTime], (insertErr, insertResult) => {
+                if (insertErr) {
+                    console.error(insertErr);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+
+                res.json({ message: 'Cooldown data inserted successfully' });
+            });
+        } else {
+            res.json({ message: 'Cooldown data updated successfully' });
+        }
+    });
+});
+
+
+
+
+
+
 app.listen(3000, () => console.log('Server ready on port 3000.'));
 
 export default app;
