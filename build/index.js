@@ -598,7 +598,7 @@ app.get('/view-image/:userId', (req, res) => {
         i.EloScore,
         ds.Date,
         ds.\`rank\` AS currentRank,
-        COALESCE(prev_ds.\`rank\`, ds.\`rank\`) AS previousRank,
+        prev_ds.\`rank\` AS previousRank,
         CASE
           WHEN prev_ds.\`rank\` IS NULL THEN 'New'
           WHEN ds.\`rank\` < prev_ds.\`rank\` THEN CONCAT('+', prev_ds.\`rank\` - ds.\`rank\`)

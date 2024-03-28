@@ -739,19 +739,19 @@ app.get('/view-image/:userId', (req: Request, res: Response) => {
         i.ImageURL,
         i.EloScore,
         ds.Date,
-        ds.\`rank\` AS currentRank,
-        COALESCE(prev_ds.\`rank\`, ds.\`rank\`) AS previousRank,
+        (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) AS currentRank,
+        prev_ds.\`rank\` AS previousRank,
         CASE
           WHEN prev_ds.\`rank\` IS NULL THEN 'New'
-          WHEN ds.\`rank\` < prev_ds.\`rank\` THEN CONCAT('+', prev_ds.\`rank\` - ds.\`rank\`)
-          WHEN ds.\`rank\` > prev_ds.\`rank\` THEN CONCAT(ds.\`rank\` - prev_ds.\`rank\`)
+          WHEN (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) < prev_ds.\`rank\` THEN CONCAT('+', prev_ds.\`rank\` - (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore))
+          WHEN (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) > prev_ds.\`rank\` THEN CONCAT((SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) - prev_ds.\`rank\`)
           ELSE '0'
         END AS rankChange
       FROM Images i
-      JOIN DailyStatistics ds ON i.ImageID = ds.image_id AND ds.Date = (SELECT MAX(Date) FROM DailyStatistics WHERE image_id = i.ImageID)
-      LEFT JOIN DailyStatistics prev_ds ON i.ImageID = prev_ds.image_id AND prev_ds.Date = DATE_SUB(ds.Date, INTERVAL 1 DAY)
+      LEFT JOIN DailyStatistics ds ON i.ImageID = ds.image_id AND ds.Date = (SELECT MAX(Date) FROM DailyStatistics WHERE image_id = i.ImageID)
+      LEFT JOIN DailyStatistics prev_ds ON i.ImageID = prev_ds.image_id AND prev_ds.Date = DATE_SUB(COALESCE(ds.Date, CURDATE()), INTERVAL 1 DAY)
       WHERE i.UserID = ?
-      ORDER BY ds.Date DESC, i.EloScore DESC;
+      ORDER BY i.EloScore DESC;
     `;
 
     db.query(getUserImagesQuery, [userId], (getUserImagesErr, userImages) => {
