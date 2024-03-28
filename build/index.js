@@ -114,6 +114,37 @@ app.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }));
 }));
 // Endpoint for user login
+// app.post('/login', (req: Request, res: Response) => {
+//     const { username, password } = req.body;
+//     // Check if username and password are provided
+//     if (!username || !password) {
+//         return res.status(400).json({ error: 'Username and password are required' });
+//     }
+//     // Check if the user exists in the database
+//     const query = 'SELECT * FROM Users WHERE Username = ?';
+//     db.query(query, [username], (err, results) => {
+//         if (err) {
+//             console.error(err);
+//             return res.status(500).json({ error: 'Internal Server Error' });
+//         }
+//         if (results.length === 0) {
+//             return res.status(401).json({ error: 'Invalid username or password' });
+//         }
+//         // Compare the provided password with the hashed password from the database
+//         const user = results[0];
+//         bcrypt.compare(password, user.Password, (bcryptErr, bcryptResult) => {
+//             if (bcryptErr) {
+//                 console.error(bcryptErr);
+//                 return res.status(500).json({ error: 'Internal Server Error' });
+//             }
+//             if (!bcryptResult) {
+//                 return res.status(401).json({ error: 'Invalid username or password' });
+//             }
+//             // Passwords match, user is authenticated
+//             res.json({ userId: user.UserID, message: 'Login successful' });
+//         });
+//     });
+// });
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     // Check if username and password are provided
@@ -141,94 +172,15 @@ app.post('/login', (req, res) => {
                 return res.status(401).json({ error: 'Invalid username or password' });
             }
             // Passwords match, user is authenticated
-            res.json({ userId: user.UserID, message: 'Login successful' });
+            if (user.type === 'admin') {
+                res.json({ userId: user.UserID, message: 'Login admin successful' });
+            }
+            else {
+                res.json({ userId: user.UserID, message: 'Login successful' });
+            }
         });
     });
 });
-//     const query = 'SELECT * FROM Images WHERE EloScore BETWEEN (1500 - 300) AND (1500 + 300) ORDER BY RAND() LIMIT 2';
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-//         res.json(results);
-//     });
-// });
-//     const eloRange = 300;
-//     const query = `
-//       SELECT I.*, U.display_name
-//       FROM Images I
-//       JOIN Users U ON I.UserID = U.UserID
-//       WHERE I.EloScore BETWEEN ? AND ?
-//         AND U.UserID != I.UserID
-//       ORDER BY RAND()
-//       LIMIT 2
-//     `;
-//     const eloMin = 1500 - eloRange;
-//     const eloMax = 1500 + eloRange;
-//     db.query(query, [eloMin, eloMax], (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-//         res.json(results);
-//     });
-// });
-// app.get('/randomImages', (req: Request, res: Response) => {
-//     const subquery = `
-//         SELECT MAX(ImageID) AS ImageID
-//         FROM Images
-//         WHERE EloScore BETWEEN (1500 - 300) AND (1500 + 300)
-//         GROUP BY UserID
-//         ORDER BY RAND()
-//         LIMIT 2
-//     `;
-//     const query = `
-//         SELECT i.*
-//         FROM Images i
-//         JOIN (${subquery}) sub ON i.ImageID = sub.ImageID
-//         WHERE i.EloScore BETWEEN (1500 - 300) AND (1500 + 300)
-//     `;
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-//         res.json(results);
-//     });
-// });
-// app.get('/randomImages', (req: Request, res: Response) => {
-//     const eloRange = 300;
-//     // Query to select random images from two different users within the EloScore range
-//     const query = `
-//         SELECT *
-//         FROM Images
-//         WHERE EloScore BETWEEN (1500 - ${eloRange}) AND (1500 + ${eloRange})
-//         ORDER BY RAND()
-//         LIMIT 4
-//     `;
-//     // Execute the query
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-//         // Ensure that we have at least two different users' images
-//         const uniqueUsers = new Set<number>();
-//         const selectedImages: any[] = [];
-//         for (const image of results) {
-//             if (!uniqueUsers.has(image.UserID)) {
-//                 uniqueUsers.add(image.UserID);
-//                 selectedImages.push(image);
-//             }
-//             if (selectedImages.length >= 2) {
-//                 break;  // Stop once we have images from two different users
-//             }
-//         }
-//         // Send the JSON response with the selected images
-//         res.json(selectedImages);
-//     });
-// });
 app.get('/randomImages', (req, res) => {
     const eloRange = 300;
     // Query to select random images from two different users within the EloScore range
@@ -263,39 +215,86 @@ app.get('/randomImages', (req, res) => {
     });
 });
 const cooldownMap = new Map();
+// app.post('/vote', (req, res) => {
+//     const { VoterID, WinImageID, LoseImageID } = req.body;
+//     // Check if cooldown is active for either WinImageID or LoseImageID
+//     if (
+//         (cooldownMap.has(WinImageID) && Date.now() - cooldownMap.get(WinImageID)! < 5000) ||
+//         (cooldownMap.has(LoseImageID) && Date.now() - cooldownMap.get(LoseImageID)! < 5000)
+//     ) {
+//         res.status(403).send('Cooldown active. Cannot vote for the same ImageID within 5 seconds.');
+//         return;
+//     }
+//     // Acquire a connection from the pool
+//     db.getConnection((getConnectionError, connection) => {
+//         if (getConnectionError) {
+//             console.error('Error acquiring connection from the pool:', getConnectionError);
+//             res.status(500).send('Internal Server Error');
+//             return;
+//         }
+//         // Insert the vote into the Votes table
+//         const voteQuery = `INSERT INTO Votes (VoterID, WinImageID, LoseImageID) VALUES (?, ?, ?)`;
+//         connection.query(voteQuery, [VoterID, WinImageID, LoseImageID], (voteError, voteResults) => {
+//             if (voteError) {
+//                 connection.release(); // Release the connection back to the pool
+//                 console.error('Error inserting vote into Votes table:', voteError);
+//                 res.status(500).send('Internal Server Error');
+//             } else {
+//                 // Update EloScores in the Images table
+//                 updateEloScores(connection, WinImageID, LoseImageID, () => {
+//                     connection.release(); // Release the connection back to the pool
+//                     res.status(200).json({ message: 'Vote successfully recorded' });
+//                     // Set the cooldown timestamp for both WinImageID and LoseImageID
+//                     cooldownMap.set(WinImageID, Date.now());
+//                     cooldownMap.set(LoseImageID, Date.now());
+//                 });
+//             }
+//         });
+//     });
+// });
 app.post('/vote', (req, res) => {
     const { VoterID, WinImageID, LoseImageID } = req.body;
-    // Check if cooldown is active for either WinImageID or LoseImageID
-    if ((cooldownMap.has(WinImageID) && Date.now() - cooldownMap.get(WinImageID) < 5000) ||
-        (cooldownMap.has(LoseImageID) && Date.now() - cooldownMap.get(LoseImageID) < 5000)) {
-        res.status(403).send('Cooldown active. Cannot vote for the same ImageID within 5 seconds.');
-        return;
-    }
-    // Acquire a connection from the pool
-    db.getConnection((getConnectionError, connection) => {
-        if (getConnectionError) {
-            console.error('Error acquiring connection from the pool:', getConnectionError);
+    // Retrieve the cooldown value from the "cooldown" table
+    const getCooldownQuery = 'SELECT cooldown FROM cooldown LIMIT 1';
+    db.query(getCooldownQuery, (getCooldownError, cooldownResults) => {
+        if (getCooldownError) {
+            console.error('Error retrieving cooldown value:', getCooldownError);
             res.status(500).send('Internal Server Error');
             return;
         }
-        // Insert the vote into the Votes table
-        const voteQuery = `INSERT INTO Votes (VoterID, WinImageID, LoseImageID) VALUES (?, ?, ?)`;
-        connection.query(voteQuery, [VoterID, WinImageID, LoseImageID], (voteError, voteResults) => {
-            if (voteError) {
-                connection.release(); // Release the connection back to the pool
-                console.error('Error inserting vote into Votes table:', voteError);
+        const cooldownValue = cooldownResults[0].cooldown * 1000; // Convert seconds to milliseconds
+        // Check if cooldown is active for either WinImageID or LoseImageID
+        if ((cooldownMap.has(WinImageID) && Date.now() - cooldownMap.get(WinImageID) < cooldownValue) ||
+            (cooldownMap.has(LoseImageID) && Date.now() - cooldownMap.get(LoseImageID) < cooldownValue)) {
+            res.status(403).send(`Cooldown active. Cannot vote for the same ImageID within ${cooldownResults[0].cooldown} seconds.`);
+            return;
+        }
+        // Acquire a connection from the pool
+        db.getConnection((getConnectionError, connection) => {
+            if (getConnectionError) {
+                console.error('Error acquiring connection from the pool:', getConnectionError);
                 res.status(500).send('Internal Server Error');
+                return;
             }
-            else {
-                // Update EloScores in the Images table
-                updateEloScores(connection, WinImageID, LoseImageID, () => {
+            // Insert the vote into the Votes table
+            const voteQuery = 'INSERT INTO Votes (VoterID, WinImageID, LoseImageID) VALUES (?, ?, ?)';
+            connection.query(voteQuery, [VoterID, WinImageID, LoseImageID], (voteError, voteResults) => {
+                if (voteError) {
                     connection.release(); // Release the connection back to the pool
-                    res.status(200).json({ message: 'Vote successfully recorded' });
-                    // Set the cooldown timestamp for both WinImageID and LoseImageID
-                    cooldownMap.set(WinImageID, Date.now());
-                    cooldownMap.set(LoseImageID, Date.now());
-                });
-            }
+                    console.error('Error inserting vote into Votes table:', voteError);
+                    res.status(500).send('Internal Server Error');
+                }
+                else {
+                    // Update EloScores in the Images table
+                    updateEloScores(connection, WinImageID, LoseImageID, () => {
+                        connection.release(); // Release the connection back to the pool
+                        res.status(200).json({ message: 'Vote successfully recorded' });
+                        // Set the cooldown timestamp for both WinImageID and LoseImageID
+                        cooldownMap.set(WinImageID, Date.now());
+                        cooldownMap.set(LoseImageID, Date.now());
+                    });
+                }
+            });
         });
     });
 });
@@ -527,7 +526,7 @@ app.delete('/deleteUser/:id', (req, res) => {
 app.get('/top-rated', (req, res) => {
     // Construct the SQL query to get the top 10 rated images with display names and rank changes
     const topRatedQuery = `
-        SELECT i.ImageID, i.ImageURL, i.EloScore, u.display_name,prev_ds.rank,
+        SELECT i.ImageID, i.ImageURL, i.EloScore, u.display_name,u.UserID,prev_ds.rank,
             CASE
                 WHEN prev_ds.rank IS NULL THEN 'New'
                 WHEN ds.rank < prev_ds.rank THEN CONCAT('+', prev_ds.rank - ds.rank)
@@ -597,19 +596,19 @@ app.get('/view-image/:userId', (req, res) => {
         i.ImageURL,
         i.EloScore,
         ds.Date,
-        ds.\`rank\` AS currentRank,
+        (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) AS currentRank,
         prev_ds.\`rank\` AS previousRank,
         CASE
           WHEN prev_ds.\`rank\` IS NULL THEN 'New'
-          WHEN ds.\`rank\` < prev_ds.\`rank\` THEN CONCAT('+', prev_ds.\`rank\` - ds.\`rank\`)
-          WHEN ds.\`rank\` > prev_ds.\`rank\` THEN CONCAT(ds.\`rank\` - prev_ds.\`rank\`)
+          WHEN (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) < prev_ds.\`rank\` THEN CONCAT('+', prev_ds.\`rank\` - (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore))
+          WHEN (SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) > prev_ds.\`rank\` THEN CONCAT((SELECT COUNT(*) + 1 FROM Images WHERE EloScore > i.EloScore) - prev_ds.\`rank\`)
           ELSE '0'
         END AS rankChange
       FROM Images i
-      JOIN DailyStatistics ds ON i.ImageID = ds.image_id AND ds.Date = (SELECT MAX(Date) FROM DailyStatistics WHERE image_id = i.ImageID)
-      LEFT JOIN DailyStatistics prev_ds ON i.ImageID = prev_ds.image_id AND prev_ds.Date = DATE_SUB(ds.Date, INTERVAL 1 DAY)
+      LEFT JOIN DailyStatistics ds ON i.ImageID = ds.image_id AND ds.Date = (SELECT MAX(Date) FROM DailyStatistics WHERE image_id = i.ImageID)
+      LEFT JOIN DailyStatistics prev_ds ON i.ImageID = prev_ds.image_id AND prev_ds.Date = DATE_SUB(COALESCE(ds.Date, CURDATE()), INTERVAL 1 DAY)
       WHERE i.UserID = ?
-      ORDER BY ds.Date DESC, i.EloScore DESC;
+      ORDER BY i.EloScore DESC;
     `;
     db.query(getUserImagesQuery, [userId], (getUserImagesErr, userImages) => {
         if (getUserImagesErr) {
@@ -674,6 +673,40 @@ app.post("/upload", fileUpload.diskLoader.single("123"), (req, res) => __awaiter
         res.status(500).json({ error: 'Internal server error' });
     }
 }));
+// app.delete('/deleteImage/:imageId', async (req: Request, res: Response) => {
+//     const imageId = req.params.imageId;
+//     // Check if the image exists in the database
+//     const checkImageQuery = 'SELECT * FROM Images WHERE ImageID = ?';
+//     db.query(checkImageQuery, [imageId], async (checkErr, checkResults) => {
+//         if (checkErr) {
+//             console.error(checkErr);
+//             return res.status(500).json({ error: 'Internal Server Error' });
+//         }
+//         // If the image doesn't exist, return an error
+//         if (checkResults.length === 0) {
+//             return res.status(404).json({ error: 'Image not found' });
+//         }
+//         // Get the image URL from the database
+//         const imageUrl = checkResults[0].ImageURL;
+//         try {
+//             // Delete the image from Firebase Storage
+//             const storageRef = ref(storage, imageUrl);
+//             await deleteObject(storageRef);
+//             // Delete the image from the database
+//             const deleteQuery = 'DELETE FROM Images WHERE ImageID = ?';
+//             db.query(deleteQuery, [imageId], (deleteErr, result) => {
+//                 if (deleteErr) {
+//                     console.error(deleteErr);
+//                     return res.status(500).json({ error: 'Internal Server Error' });
+//                 }
+//                 res.json({ message: 'Image deleted successfully' });
+//             });
+//         } catch (error) {
+//             console.error('Error deleting image:', error);
+//             res.status(500).json({ error: 'Internal Server Error' });
+//         }
+//     });
+// });
 app.delete('/deleteImage/:imageId', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const imageId = req.params.imageId;
     // Check if the image exists in the database
@@ -690,6 +723,9 @@ app.delete('/deleteImage/:imageId', (req, res) => __awaiter(void 0, void 0, void
         // Get the image URL from the database
         const imageUrl = checkResults[0].ImageURL;
         try {
+            // Delete the related records from the DailyStatistics table
+            const deleteDailyStatisticsQuery = 'DELETE FROM DailyStatistics WHERE image_id = ?';
+            yield db.query(deleteDailyStatisticsQuery, [imageId]);
             // Delete the image from Firebase Storage
             const storageRef = (0, storage_1.ref)(storage, imageUrl);
             yield (0, storage_1.deleteObject)(storageRef);

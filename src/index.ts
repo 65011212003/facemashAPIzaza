@@ -132,6 +132,46 @@ app.post('/register', async (req: Request, res: Response) => {
 
 
 // Endpoint for user login
+// app.post('/login', (req: Request, res: Response) => {
+//     const { username, password } = req.body;
+
+//     // Check if username and password are provided
+//     if (!username || !password) {
+//         return res.status(400).json({ error: 'Username and password are required' });
+//     }
+
+//     // Check if the user exists in the database
+//     const query = 'SELECT * FROM Users WHERE Username = ?';
+
+//     db.query(query, [username], (err, results) => {
+//         if (err) {
+//             console.error(err);
+//             return res.status(500).json({ error: 'Internal Server Error' });
+//         }
+
+//         if (results.length === 0) {
+//             return res.status(401).json({ error: 'Invalid username or password' });
+//         }
+
+//         // Compare the provided password with the hashed password from the database
+//         const user = results[0];
+//         bcrypt.compare(password, user.Password, (bcryptErr, bcryptResult) => {
+//             if (bcryptErr) {
+//                 console.error(bcryptErr);
+//                 return res.status(500).json({ error: 'Internal Server Error' });
+//             }
+
+//             if (!bcryptResult) {
+//                 return res.status(401).json({ error: 'Invalid username or password' });
+//             }
+
+//             // Passwords match, user is authenticated
+//             res.json({ userId: user.UserID, message: 'Login successful' });
+//         });
+//     });
+// });
+
+
 app.post('/login', (req: Request, res: Response) => {
     const { username, password } = req.body;
 
@@ -142,7 +182,6 @@ app.post('/login', (req: Request, res: Response) => {
 
     // Check if the user exists in the database
     const query = 'SELECT * FROM Users WHERE Username = ?';
-
     db.query(query, [username], (err, results) => {
         if (err) {
             console.error(err);
@@ -166,116 +205,16 @@ app.post('/login', (req: Request, res: Response) => {
             }
 
             // Passwords match, user is authenticated
-            res.json({ userId: user.UserID, message: 'Login successful' });
+            if (user.type === 'admin') {
+                res.json({ userId: user.UserID, message: 'Login admin successful' });
+            } else {
+                res.json({ userId: user.UserID, message: 'Login successful' });
+            }
         });
     });
 });
 
-//     const query = 'SELECT * FROM Images WHERE EloScore BETWEEN (1500 - 300) AND (1500 + 300) ORDER BY RAND() LIMIT 2';
 
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-
-//         res.json(results);
-//     });
-// });
-
-
-//     const eloRange = 300;
-
-//     const query = `
-//       SELECT I.*, U.display_name
-//       FROM Images I
-//       JOIN Users U ON I.UserID = U.UserID
-//       WHERE I.EloScore BETWEEN ? AND ?
-//         AND U.UserID != I.UserID
-//       ORDER BY RAND()
-//       LIMIT 2
-//     `;
-
-//     const eloMin = 1500 - eloRange;
-//     const eloMax = 1500 + eloRange;
-
-//     db.query(query, [eloMin, eloMax], (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-
-//         res.json(results);
-//     });
-// });
-
-// app.get('/randomImages', (req: Request, res: Response) => {
-
-//     const subquery = `
-//         SELECT MAX(ImageID) AS ImageID
-//         FROM Images
-//         WHERE EloScore BETWEEN (1500 - 300) AND (1500 + 300)
-//         GROUP BY UserID
-//         ORDER BY RAND()
-//         LIMIT 2
-//     `;
-
-//     const query = `
-//         SELECT i.*
-//         FROM Images i
-//         JOIN (${subquery}) sub ON i.ImageID = sub.ImageID
-//         WHERE i.EloScore BETWEEN (1500 - 300) AND (1500 + 300)
-//     `;
-
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-
-//         res.json(results);
-//     });
-// });
-
-
-// app.get('/randomImages', (req: Request, res: Response) => {
-//     const eloRange = 300;
-
-//     // Query to select random images from two different users within the EloScore range
-//     const query = `
-//         SELECT *
-//         FROM Images
-//         WHERE EloScore BETWEEN (1500 - ${eloRange}) AND (1500 + ${eloRange})
-//         ORDER BY RAND()
-//         LIMIT 4
-//     `;
-
-//     // Execute the query
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             console.error(err);
-//             return res.status(500).json({ error: 'Internal Server Error' });
-//         }
-
-//         // Ensure that we have at least two different users' images
-//         const uniqueUsers = new Set<number>();
-//         const selectedImages: any[] = [];
-
-//         for (const image of results) {
-//             if (!uniqueUsers.has(image.UserID)) {
-//                 uniqueUsers.add(image.UserID);
-//                 selectedImages.push(image);
-//             }
-
-//             if (selectedImages.length >= 2) {
-//                 break;  // Stop once we have images from two different users
-//             }
-//         }
-
-//         // Send the JSON response with the selected images
-//         res.json(selectedImages);
-//     });
-// });
 
 
 app.get('/randomImages', (req: Request, res: Response) => {
