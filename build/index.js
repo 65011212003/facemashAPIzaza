@@ -577,27 +577,45 @@ app.put('/change-image/:userId', (req, res) => __awaiter(void 0, void 0, void 0,
         res.status(500).json({ error: 'Internal server error' });
     }
 }));
+// app.get('/view-image/:userId', (req: Request, res: Response) => {
+//     // Assuming you have user authentication in place, and you get the user ID from the authenticated user.
+//     const userId = req.params.userId;
+//     // Get the user's image list
+//     const getUserImagesQuery = `SELECT * FROM Images WHERE UserID = ? ORDER BY EloScore DESC`;
+//     db.query(getUserImagesQuery, [userId], (getUserImagesErr, userImages) => {
+//         if (getUserImagesErr) {
+//             return res.status(500).json({ error: 'Internal Server Error' });
+//         }
+//         res.json({ userImages });
+//     });
+// });
 app.get('/view-image/:userId', (req, res) => {
-    // Assuming you have user authentication in place, and you get the user ID from the authenticated user.
     const userId = req.params.userId;
-    // Get the user's image list
-    const getUserImagesQuery = `SELECT * FROM Images WHERE UserID = ? ORDER BY EloScore DESC`;
+    const getUserImagesQuery = `
+      SELECT 
+        i.ImageID,
+        i.ImageURL,
+        i.EloScore,
+        ds.Date,
+        ds.\`rank\` AS currentRank,
+        COALESCE(prev_ds.\`rank\`, ds.\`rank\`) AS previousRank,
+        CASE
+          WHEN prev_ds.\`rank\` IS NULL THEN 'New'
+          WHEN ds.\`rank\` < prev_ds.\`rank\` THEN CONCAT('+', prev_ds.\`rank\` - ds.\`rank\`)
+          WHEN ds.\`rank\` > prev_ds.\`rank\` THEN CONCAT(ds.\`rank\` - prev_ds.\`rank\`)
+          ELSE '0'
+        END AS rankChange
+      FROM Images i
+      JOIN DailyStatistics ds ON i.ImageID = ds.image_id AND ds.Date = (SELECT MAX(Date) FROM DailyStatistics WHERE image_id = i.ImageID)
+      LEFT JOIN DailyStatistics prev_ds ON i.ImageID = prev_ds.image_id AND prev_ds.Date = DATE_SUB(ds.Date, INTERVAL 1 DAY)
+      WHERE i.UserID = ?
+      ORDER BY ds.Date DESC, i.EloScore DESC;
+    `;
     db.query(getUserImagesQuery, [userId], (getUserImagesErr, userImages) => {
         if (getUserImagesErr) {
+            console.error('Error retrieving user images:', getUserImagesErr);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
-        // Get the user's daily statistics
-        // const getDailyStatsQuery = `SELECT * FROM DailyStatistics WHERE UserID = ? ORDER BY Date DESC LIMIT 2`;
-        // db.query(getDailyStatsQuery, [userId], (getDailyStatsErr, dailyStats) => {
-        //     if (getDailyStatsErr) {
-        //         return res.status(500).json({ error: 'Internal Server Error' });
-        //     }
-        // Calculate ranking changes
-        // const todayWins = dailyStats[0]?.Wins || 0;
-        // const yesterdayWins = dailyStats[1]?.Wins || 0;
-        // const rankingChange = todayWins - yesterdayWins;
-        // Send the response with user images and ranking changes
-        // res.json({ userImages, rankingChange });
         res.json({ userImages });
     });
 });
