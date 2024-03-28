@@ -329,47 +329,103 @@ interface Image {
 
 const cooldownMap = new Map<number, number>();
 
+// app.post('/vote', (req, res) => {
+//     const { VoterID, WinImageID, LoseImageID } = req.body;
+
+//     // Check if cooldown is active for either WinImageID or LoseImageID
+//     if (
+//         (cooldownMap.has(WinImageID) && Date.now() - cooldownMap.get(WinImageID)! < 5000) ||
+//         (cooldownMap.has(LoseImageID) && Date.now() - cooldownMap.get(LoseImageID)! < 5000)
+//     ) {
+//         res.status(403).send('Cooldown active. Cannot vote for the same ImageID within 5 seconds.');
+//         return;
+//     }
+
+//     // Acquire a connection from the pool
+//     db.getConnection((getConnectionError, connection) => {
+//         if (getConnectionError) {
+//             console.error('Error acquiring connection from the pool:', getConnectionError);
+//             res.status(500).send('Internal Server Error');
+//             return;
+//         }
+
+//         // Insert the vote into the Votes table
+//         const voteQuery = `INSERT INTO Votes (VoterID, WinImageID, LoseImageID) VALUES (?, ?, ?)`;
+//         connection.query(voteQuery, [VoterID, WinImageID, LoseImageID], (voteError, voteResults) => {
+//             if (voteError) {
+//                 connection.release(); // Release the connection back to the pool
+//                 console.error('Error inserting vote into Votes table:', voteError);
+//                 res.status(500).send('Internal Server Error');
+//             } else {
+//                 // Update EloScores in the Images table
+//                 updateEloScores(connection, WinImageID, LoseImageID, () => {
+//                     connection.release(); // Release the connection back to the pool
+//                     res.status(200).json({ message: 'Vote successfully recorded' });
+
+//                     // Set the cooldown timestamp for both WinImageID and LoseImageID
+//                     cooldownMap.set(WinImageID, Date.now());
+//                     cooldownMap.set(LoseImageID, Date.now());
+//                 });
+//             }
+//         });
+//     });
+// });
+
+
 app.post('/vote', (req, res) => {
     const { VoterID, WinImageID, LoseImageID } = req.body;
 
-    // Check if cooldown is active for either WinImageID or LoseImageID
-    if (
-        (cooldownMap.has(WinImageID) && Date.now() - cooldownMap.get(WinImageID)! < 5000) ||
-        (cooldownMap.has(LoseImageID) && Date.now() - cooldownMap.get(LoseImageID)! < 5000)
-    ) {
-        res.status(403).send('Cooldown active. Cannot vote for the same ImageID within 5 seconds.');
-        return;
-    }
-
-    // Acquire a connection from the pool
-    db.getConnection((getConnectionError, connection) => {
-        if (getConnectionError) {
-            console.error('Error acquiring connection from the pool:', getConnectionError);
+    // Retrieve the cooldown value from the "cooldown" table
+    const getCooldownQuery = 'SELECT cooldown FROM cooldown LIMIT 1';
+    db.query(getCooldownQuery, (getCooldownError, cooldownResults) => {
+        if (getCooldownError) {
+            console.error('Error retrieving cooldown value:', getCooldownError);
             res.status(500).send('Internal Server Error');
             return;
         }
 
-        // Insert the vote into the Votes table
-        const voteQuery = `INSERT INTO Votes (VoterID, WinImageID, LoseImageID) VALUES (?, ?, ?)`;
-        connection.query(voteQuery, [VoterID, WinImageID, LoseImageID], (voteError, voteResults) => {
-            if (voteError) {
-                connection.release(); // Release the connection back to the pool
-                console.error('Error inserting vote into Votes table:', voteError);
-                res.status(500).send('Internal Server Error');
-            } else {
-                // Update EloScores in the Images table
-                updateEloScores(connection, WinImageID, LoseImageID, () => {
-                    connection.release(); // Release the connection back to the pool
-                    res.status(200).json({ message: 'Vote successfully recorded' });
+        const cooldownValue = cooldownResults[0].cooldown * 1000; // Convert seconds to milliseconds
 
-                    // Set the cooldown timestamp for both WinImageID and LoseImageID
-                    cooldownMap.set(WinImageID, Date.now());
-                    cooldownMap.set(LoseImageID, Date.now());
-                });
+        // Check if cooldown is active for either WinImageID or LoseImageID
+        if (
+            (cooldownMap.has(WinImageID) && Date.now() - cooldownMap.get(WinImageID)! < cooldownValue) ||
+            (cooldownMap.has(LoseImageID) && Date.now() - cooldownMap.get(LoseImageID)! < cooldownValue)
+        ) {
+            res.status(403).send(`Cooldown active. Cannot vote for the same ImageID within ${cooldownResults[0].cooldown} seconds.`);
+            return;
+        }
+
+        // Acquire a connection from the pool
+        db.getConnection((getConnectionError, connection) => {
+            if (getConnectionError) {
+                console.error('Error acquiring connection from the pool:', getConnectionError);
+                res.status(500).send('Internal Server Error');
+                return;
             }
+
+            // Insert the vote into the Votes table
+            const voteQuery = 'INSERT INTO Votes (VoterID, WinImageID, LoseImageID) VALUES (?, ?, ?)';
+            connection.query(voteQuery, [VoterID, WinImageID, LoseImageID], (voteError, voteResults) => {
+                if (voteError) {
+                    connection.release(); // Release the connection back to the pool
+                    console.error('Error inserting vote into Votes table:', voteError);
+                    res.status(500).send('Internal Server Error');
+                } else {
+                    // Update EloScores in the Images table
+                    updateEloScores(connection, WinImageID, LoseImageID, () => {
+                        connection.release(); // Release the connection back to the pool
+                        res.status(200).json({ message: 'Vote successfully recorded' });
+
+                        // Set the cooldown timestamp for both WinImageID and LoseImageID
+                        cooldownMap.set(WinImageID, Date.now());
+                        cooldownMap.set(LoseImageID, Date.now());
+                    });
+                }
+            });
         });
     });
 });
+
 
 function updateEloScores(connection: mysql.PoolConnection, winImageID: any, loseImageID: any, callback: { (): void; (): void; }) {
     // Retrieve EloScores for the two images
